@@ -20,6 +20,7 @@ const RespondType = 'JSON';
 router.get('/', function (req, res, next) {
   res.render('index', { title: 'Express' });
 });
+/* 原程式
 router.post('/createOrder', (req, res) => {
   const data = req.body;
   console.log(data);
@@ -49,6 +50,54 @@ router.post('/createOrder', (req, res) => {
 
   res.redirect(`/check/${TimeStamp}`);
 });
+*/
+
+//跳過中繼頁面
+router.post('/createOrder', (req, res) => {
+  const data = req.body;
+  const TimeStamp = Math.round(new Date().getTime() / 1000);
+
+  const order = {
+    ...data,
+    TimeStamp,
+    Amt: parseInt(data.Amt),
+    MerchantOrderNo: TimeStamp,
+  };
+
+  const aesEncrypt = createSesEncrypt(order);
+  const shaEncrypt = createShaEncrypt(aesEncrypt);
+
+  // 不再 redirect，而是回傳 HTML 表單，直接跳轉藍新付款頁
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Redirecting...</title>
+      </head>
+      <body>
+        <form id="payForm" method="post" action="${PayGateWay}">
+          <input type="hidden" name="MerchantID" value="${MerchantID}" />
+          <input type="hidden" name="TradeInfo" value="${aesEncrypt}" />
+          <input type="hidden" name="TradeSha" value="${shaEncrypt}" />
+          <input type="hidden" name="Version" value="${Version}" />
+          <input type="hidden" name="RespondType" value="${RespondType}" />
+          <input type="hidden" name="TimeStamp" value="${order.TimeStamp}" />
+          <input type="hidden" name="MerchantOrderNo" value="${order.MerchantOrderNo}" />
+          <input type="hidden" name="Amt" value="${order.Amt}" />
+          <input type="hidden" name="ItemDesc" value="${order.ItemDesc}" />
+          <input type="hidden" name="Email" value="${order.Email}" />
+          <input type="hidden" name="ReturnURL" value="${ReturnUrl}" />
+          <input type="hidden" name="NotifyURL" value="${NotifyUrl}" />
+        </form>
+        <script>document.getElementById('payForm').submit();</script>
+      </body>
+    </html>
+  `);
+});
+
+
+
 
 router.get('/check/:id', (req, res, next) => {
   const { id } = req.params;
